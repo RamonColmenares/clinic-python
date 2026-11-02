@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "clinic-turnos"
+version = "1.0.0"
+description = "Local clinic patient, dentist, and appointment management application"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["Flask==3.1.3"]
+
+[project.optional-dependencies]
+dev = ["pytest==9.0.3"]
+
+[project.scripts]
+clinic-admin = "clinic.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["clinic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

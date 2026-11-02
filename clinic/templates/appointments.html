@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Turnos · Clinic Turnos{% endblock %}
+{% block page_name %}appointments{% endblock %}
+{% block content %}
+  <div class="page-heading"><div><p class="eyebrow">CLÍNICA</p><h1>Turnos</h1></div><a class="button" href="/alta-turno.html">Agregar turno</a></div>
+  <p id="response" class="notice" role="status" hidden></p>
+  <section class="panel">
+    <div class="table-scroll">
+      <table><thead><tr><th>ID</th><th>Odontólogo</th><th>Paciente</th><th>Fecha</th><th>Acciones</th></tr></thead>
+      <tbody id="records"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
+    </div>
+  </section>
+  <section id="edit-panel" class="panel form-panel" hidden>
+    <h2>Editar turno</h2>
+    <form id="edit-form" data-entity="appointment">
+      <input type="hidden" name="id">
+      <label>Odontólogo<select name="odontologo" required></select></label>
+      <label>Paciente<select name="paciente" required></select></label>
+      <label>Fecha<input name="fecha" type="date" required></label>
+      <div class="form-actions"><button type="submit">Guardar cambios</button><button class="button secondary" type="button" data-cancel>Cancelar</button></div>
+    </form>
+  </section>
+{% endblock %}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Clinic Turnos{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/clinic.js" defer></script>
+</head>
+<body data-role="{{ role }}" data-username="{{ username }}" data-page="{% block page_name %}{% endblock %}">
+  <header class="topbar">
+    <a class="brand" href="/">Clinic Turnos</a>
+    <nav aria-label="Navegación principal">
+      <a href="/odontologos.html">Odontólogos</a>
+      <a href="/pacientes.html">Pacientes</a>
+      <a href="/turnos.html">Turnos</a>
+    </nav>
+    <div class="account">
+      <span>{{ display_name }} · {{ role }}</span>
+      <form action="/logout" method="post"><button class="link-button" type="submit">Salir</button></form>
+    </div>
+  </header>
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

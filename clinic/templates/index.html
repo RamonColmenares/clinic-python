@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Inicio · Clinic Turnos{% endblock %}
+{% block page_name %}home{% endblock %}
+{% block content %}
+  <section class="hero">
+    <p class="eyebrow">GESTIÓN DE CLÍNICA</p>
+    <h1>Hola, {{ display_name }}</h1>
+    <p class="muted">Administra pacientes, odontólogos y turnos desde este equipo.</p>
+  </section>
+  <section class="card-grid" aria-label="Secciones">
+    <article class="card">
+      <h2>Odontólogos</h2>
+      <p>Consulta el personal registrado{% if role == 'ADMIN' %} y administra sus datos{% endif %}.</p>
+      <a class="button secondary" href="/odontologos.html">Abrir odontólogos</a>
+      {% if role == 'ADMIN' %}<a class="text-link" href="/alta-odontologos.html">Agregar odontólogo</a>{% endif %}
+    </article>
+    <article class="card">
+      <h2>Pacientes</h2>
+      <p>Consulta pacientes y sus domicilios{% if role == 'ADMIN' %}, o actualiza sus datos{% endif %}.</p>
+      <a class="button secondary" href="/pacientes.html">Abrir pacientes</a>
+      {% if role == 'ADMIN' %}<a class="text-link" href="/alta-paciente.html">Agregar paciente</a>{% endif %}
+    </article>
+    <article class="card">
+      <h2>Turnos</h2>
+      <p>Organiza las citas asignadas a cada paciente y odontólogo.</p>
+      <a class="button secondary" href="/turnos.html">Abrir turnos</a>
+      <a class="text-link" href="/alta-turno.html">Agregar turno</a>
+    </article>
+  </section>
+{% endblock %}
