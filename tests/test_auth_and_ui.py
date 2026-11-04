@@ -1,79 +1,72 @@
 from __future__ import annotations
 
-from clinic.db import get_db
+import re
 
 
-def test_authentication_and_role_permissions(client, credentials, sign_in):
-    assert client.get("/pacientes/listar").status_code == 401
-    assert client.get("/turnos").status_code == 401
+def test_login_logout_roles_and_api_authentication(client, credentials, sign_in, practice):
+    assert client.get("/api/session").status_code == 401
+    unknown = client.get("/api/no-such-route")
+    assert unknown.status_code == 401
+    assert unknown.is_json
     assert client.get("/").status_code == 302
-    assert client.get("/login").status_code == 200
 
-    with client.application.app_context():
-        assert get_db().execute("SELECT COUNT(*) FROM users").fetchone()[0] == 2
+    login_page = client.get("/login")
+    token = re.search(rb'name="csrf_token" value="([^"]+)"', login_page.data).group(1).decode()
+    wrong_password = client.post("/login", data={"username": "dummy-admin", "password": "wrong", "csrf_token": token})
+    assert wrong_password.status_code == 200
+    assert b"The username or password is incorrect." in wrong_password.data
 
     sign_in(client, credentials)
-    dentist = client.post(
-        "/odontologos", json={"nombre": "DUMMY", "apellido": "Dentist", "matricula": "TEST"}
-    ).get_json()
-    patient = client.post(
-        "/pacientes",
-        json={"nombre": "DUMMY", "apellido": "Patient", "domicilio": {"calle": "Test Road"}},
-    ).get_json()
-
+    ids = practice(client)
+    assert client.get("/api/session").get_json()["timezone"] == "UTC"
+    csrf_required = client.post("/api/services", json={"name": "DUMMY Forbidden", "duration_minutes": 30, "price_cents": 0}, headers={"X-CSRF-Token": ""})
+    assert csrf_required.status_code == 400
     client.post("/logout")
     sign_in(client, credentials, "user")
-    assert client.get("/odontologos/listar").status_code == 200
-    assert client.get("/pacientes/listar").status_code == 200
-    assert client.get("/odontologos.html").status_code == 200
-    assert client.get("/pacientes.html").status_code == 200
-    assert client.get("/turnos.html").status_code == 200
-    assert client.get(f"/odontologos/{dentist['id']}").status_code == 403
-    assert client.get(f"/pacientes/{patient['id']}").status_code == 403
-    assert client.post(
-        "/odontologos", json={"nombre": "Other", "apellido": "Person", "matricula": "X"}
-    ).status_code == 403
-    assert client.put("/pacientes", json=patient | {"nombre": "Not Allowed"}).status_code == 403
-    assert client.delete(f"/odontologos/{dentist['id']}").status_code == 403
+    assert client.get("/api/patients").status_code == 200
+    assert client.get("/api/appointments").status_code == 200
+    assert client.get("/api/treatment-plans").status_code == 403
+    assert client.get("/api/clinical-notes").status_code == 403
+    assert client.get("/api/reports/revenue?from=2026-11-09&to=2026-11-09").status_code == 403
+    assert client.get("/api/audit").status_code == 403
+    assert client.get("/care").status_code == 403
+    assert client.get("/audit").status_code == 403
+    assert client.get(f"/api/patients/{ids['patient']['id']}").status_code == 403
+    assert client.get("/api/dentists").status_code == 200
+    assert client.post("/api/services", json={"name": "DUMMY Forbidden", "duration_minutes": 30, "price_cents": 0}).status_code == 403
+    assert b"/care" not in client.get("/patients").data
 
-    appointment = client.post(
-        "/turnos",
-        json={
-            "paciente": {"id": patient["id"]},
-            "odontologo": {"id": dentist["id"]},
-            "fecha": "2026-11-10",
-        },
-    )
-    assert appointment.status_code == 200
-    assert client.put(
-        "/turnos",
-        json={"id": appointment.get_json()["id"], "paciente": {"id": patient["id"]}, "odontologo": {"id": dentist["id"]}, "fecha": "2026-11-11"},
-    ).status_code == 200
+    csrf_result = client.post("/api/waitlist", json={}, headers={"X-CSRF-Token": ""})
+    assert csrf_result.status_code == 400
+    assert csrf_result.get_json()["error"] == "csrf_failed"
+    assert client.post("/logout", headers={"X-CSRF-Token": ""}).status_code == 400
+    assert client.post("/logout").status_code == 302
+    assert client.get("/api/patients").status_code == 401
 
 
-def test_browser_pages_include_local_functional_assets(client, credentials, sign_in):
+def test_safe_next_path_and_no_third_party_browser_dependencies(client, credentials, sign_in):
     sign_in(client, credentials)
-    home = client.get("/")
-    assert home.status_code == 200
-    assert b"href=\"/odontologos.html\"" in home.data
-    assert b"href=\"/pacientes.html\"" in home.data
-    assert b"href=\"/turnos.html\"" in home.data
-
-    for path, marker in (
-        ("/odontologos.html", b"data-page=\"dentists\""),
-        ("/alta-odontologos.html", b"data-entity=\"dentist\""),
-        ("/pacientes.html", b"data-page=\"patients\""),
-        ("/alta-paciente.html", b"data-entity=\"patient\""),
-        ("/turnos.html", b"data-page=\"appointments\""),
-        ("/alta-turno.html", b"data-entity=\"appointment\""),
-    ):
-        page_response = client.get(path)
-        assert page_response.status_code == 200
-        assert marker in page_response.data
-        assert b"maxcdn.bootstrapcdn.com" not in page_response.data
-        assert b"ajax.googleapis.com" not in page_response.data
-
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 200
+    for path in ("/", "/patients", "/dentists", "/appointments", "/catalog", "/schedule", "/care", "/waitlist", "/reminders", "/reports", "/audit", "/accounts"):
+        page = client.get(path)
+        assert page.status_code == 200, path
+        assert b"lang=\"en\"" in page.data
+        assert b"maxcdn.bootstrapcdn.com" not in page.data
+        assert b"ajax.googleapis.com" not in page.data
+        assert b"csrf-token" in page.data
     script = client.get("/static/clinic.js")
     assert script.status_code == 200
-    for endpoint in (b"/odontologos/listar", b"/pacientes/listar", b"/turnos"):
-        assert endpoint in script.data
+    for marker in (b"/api/availability", b"/api/treatment-plans", b"/api/waitlist", b"/api/reminders/generate", b"/api/reports/revenue", b"/api/accounts"):
+        assert marker in script.data
+    assert b"innerHTML" not in script.data
+
+    client.post("/logout")
+    for unsafe in ("//evil.example/path", "/%5cevil.example", "https://evil.example"):
+        page = client.get("/login?next=" + unsafe.replace("?", "%3F"))
+        token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data).group(1).decode()
+        result = client.post("/login?next=" + unsafe.replace("?", "%3F"), data={"username": credentials["admin"][0], "password": credentials["admin"][1], "csrf_token": token})
+        assert result.status_code == 302
+        assert result.headers["Location"] == "/"
+        client.environ_base["HTTP_X_CSRF_TOKEN"] = client.get("/api/session").get_json()["csrf_token"]
+        client.post("/logout")

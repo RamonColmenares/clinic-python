@@ -21,7 +21,7 @@ wheels = [
 ]
 
 [[package]]
-name = "clinic-turnos"
+name = "clinic-desk"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [

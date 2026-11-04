@@ -1,24 +1,11 @@
 <!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ingresar · Clinic Turnos</title>
-  <link rel="stylesheet" href="/static/styles.css">
-</head>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="{{ csrf_token }}"><title>Sign in · Clinic Desk</title><link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"></head>
 <body class="login-page">
-  <main class="login-card">
-    <a class="brand" href="/">Clinic Turnos</a>
-    <h1>Iniciar sesión</h1>
-    <p class="muted">Ingresa con la cuenta creada en este equipo.</p>
+  <main class="login-card"><a class="brand" href="/"><span class="brand-mark">CD</span><span>Clinic Desk</span></a><p class="eyebrow">LOCAL PRACTICE WORKSPACE</p><h1>Sign in</h1><p class="muted">Use an account created by the practice administrator.</p>
     {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
-    <form action="/login{% if request.args.get('next') %}?next={{ request.args.get('next')|urlencode }}{% endif %}" method="post">
-      <label for="username">Usuario</label>
-      <input id="username" name="username" autocomplete="username" required autofocus>
-      <label for="password">Contraseña</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button type="submit">Ingresar</button>
-    </form>
+    <form action="{{ url_for('auth.login', next=request.args.get('next')) if request.args.get('next') else url_for('auth.login') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label>Username<input name="username" autocomplete="username" maxlength="80" required autofocus></label><label>Password<input name="password" type="password" autocomplete="current-password" required></label><button type="submit">Sign in</button></form>
+    <p class="small-note">This application stores data on this device. It has no default accounts or external messaging.</p>
   </main>
 </body>
 </html>

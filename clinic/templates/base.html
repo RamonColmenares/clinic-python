@@ -1,27 +1,31 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Clinic Turnos{% endblock %}</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <script src="/static/clinic.js" defer></script>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}Clinic Desk{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
-<body data-role="{{ role }}" data-username="{{ username }}" data-page="{% block page_name %}{% endblock %}">
+<body data-page="{% block page_name %}{% endblock %}" data-role="{{ role }}">
   <header class="topbar">
-    <a class="brand" href="/">Clinic Turnos</a>
-    <nav aria-label="Navegación principal">
-      <a href="/odontologos.html">Odontólogos</a>
-      <a href="/pacientes.html">Pacientes</a>
-      <a href="/turnos.html">Turnos</a>
+    <a class="brand" href="/" aria-label="Clinic Desk home"><span class="brand-mark">CD</span><span>Clinic Desk</span></a>
+    <nav aria-label="Main navigation">
+      <a href="/patients">Patients</a>
+      <a href="/dentists">Practitioners</a>
+      <a href="/appointments">Appointments</a>
+      <a href="/waitlist">Waiting list</a>
+      <a href="/reminders">Reminders</a>
+      {% if role == 'ADMIN' %}
+      <a href="/catalog">Catalog</a><a href="/schedule">Schedule</a><a href="/care">Care</a><a href="/reports">Reports</a><a href="/audit">Audit</a><a href="/accounts">Accounts</a>
+      {% endif %}
     </nav>
-    <div class="account">
-      <span>{{ display_name }} · {{ role }}</span>
-      <form action="/logout" method="post"><button class="link-button" type="submit">Salir</button></form>
-    </div>
+    <div class="account"><span>{{ display_name }}</span><form action="/logout" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="text-button" type="submit">Sign out</button></form></div>
   </header>
   <main class="container">
     {% block content %}{% endblock %}
   </main>
+  <footer class="site-footer">Clinic Desk runs locally · Clinic time zone: UTC · Local reminder drafts are never sent automatically</footer>
+  <script src="{{ url_for('static', filename='clinic.js') }}" defer></script>
 </body>
 </html>

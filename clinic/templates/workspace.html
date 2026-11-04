@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} · Clinic Desk{% endblock %}
+{% block page_name %}{{ page_name }}{% endblock %}
+{% block content %}
+<header class="page-heading">
+  <div><p class="eyebrow">CLINIC DESK · {{ role }}</p><h1>{{ page_title }}</h1></div>
+  <p class="muted">Local records stay in this practice database. Times are UTC.</p>
+</header>
+<p id="response" class="notice" role="status" hidden></p>
+
+{% if page_name == "home" %}
+<section class="metric-grid" id="dashboard-metrics" aria-label="Today's activity">
+  <article class="metric"><span>Visits today</span><strong id="metric-total">—</strong></article>
+  <article class="metric"><span>Waiting in queue</span><strong id="metric-queue">—</strong></article>
+  <article class="metric"><span>Confirmed</span><strong id="metric-confirmed">—</strong></article>
+  <article class="metric"><span>Open reminders</span><strong id="metric-reminders">—</strong></article>
+</section>
+<section class="panel"><div class="section-heading"><div><p class="eyebrow">TODAY</p><h2>Appointment agenda</h2></div><a class="button" href="/appointments">Book a visit</a></div>
+  <div class="table-scroll"><table><thead><tr><th>Time</th><th>Patient</th><th>Practitioner</th><th>Service</th><th>Room</th><th>Status</th></tr></thead><tbody id="agenda-records"><tr><td colspan="6">Loading today's agenda…</td></tr></tbody></table></div>
+</section>
+
+{% elif page_name == "patients" %}
+{% if role == 'ADMIN' %}<section class="panel form-panel admin-only">
+  <h2 id="patient-form-title">Add patient</h2>
+  <form id="patient-form" data-form="patient">
+    <input type="hidden" name="id">
+    <div class="form-grid"><label>First name<input name="first_name" maxlength="100" required></label><label>Last name<input name="last_name" maxlength="100" required></label></div>
+    <div class="form-grid"><label>Email<input name="email" type="email" maxlength="254"></label><label>Patient number (optional)<input name="patient_number" maxlength="80"></label></div>
+    <label>Registered on<input name="registered_on" type="date"></label>
+    <fieldset><legend>Optional address</legend><div class="form-grid"><label>Street<input name="street" maxlength="160"></label><label>Number<input name="number" type="number" min="0"></label><label>City<input name="city" maxlength="120"></label><label>Region<input name="region" maxlength="120"></label></div></fieldset>
+    <label class="check-label"><input name="reminder_consent" type="checkbox"> Patient agreed to local reminder drafts</label>
+    <div class="form-actions"><button type="submit">Save patient</button><button class="button secondary" type="reset" data-cancel-edit>Clear</button></div>
+  </form>
+</section>{% endif %}
+<section class="panel"><div class="section-heading"><h2>Patient directory</h2><label class="compact-label">Search<input id="patient-search" type="search" placeholder="Name or patient number"></label></div>
+  <div class="pagination"><span id="patient-result-count">Loading patient records…</span><button id="patient-previous" class="button secondary" type="button">Previous</button><button id="patient-next" class="button secondary" type="button">Next</button></div>
+  <div class="table-scroll"><table><thead><tr><th>Name</th><th>Patient number</th><th>Email</th><th>Address</th><th>Reminder consent</th><th>Actions</th></tr></thead><tbody id="patient-records"><tr><td colspan="6">Loading patients…</td></tr></tbody></table></div>
+</section>
+
+{% elif page_name == "dentists" %}
+{% if role == 'ADMIN' %}<section class="panel form-panel admin-only"><h2 id="dentist-form-title">Add practitioner</h2>
+  <form id="dentist-form" data-form="dentist"><input type="hidden" name="id"><div class="form-grid"><label>First name<input name="first_name" maxlength="100" required></label><label>Last name<input name="last_name" maxlength="100" required></label></div><label>License number<input name="license_number" maxlength="80"></label><div class="form-actions"><button type="submit">Save practitioner</button><button class="button secondary" type="reset" data-cancel-edit>Clear</button></div></form>
+</section>{% endif %}
+<section class="panel"><h2>Practitioner directory</h2><div class="table-scroll"><table><thead><tr><th>Name</th><th>License number</th><th>Active</th><th>Qualified services</th><th>Actions</th></tr></thead><tbody id="dentist-records"><tr><td colspan="5">Loading practitioners…</td></tr></tbody></table></div></section>
+
+{% elif page_name == "appointments" %}
+<section class="panel form-panel"><h2 id="appointment-form-title">Book an appointment</h2><p class="muted">Choose a patient, qualified practitioner, service, room, and an available start time. A booking is a local reservation.</p>
+  <form id="appointment-form" data-form="appointment"><input type="hidden" name="id"><input type="hidden" name="version">
+    <div class="form-grid"><label>Patient<select name="patient_id" required></select></label><label>Practitioner<select name="dentist_id" required></select></label><label>Service<select name="service_id" required></select></label><label>Room<select name="room_id" required></select></label></div>
+    <div class="form-grid"><label>Date<input name="date" type="date" required></label><label>Available time<select name="start_at" required><option value="">Choose a date and service first</option></select></label></div>
+    <label>Visit reason (optional)<input name="reason" maxlength="300"></label><div class="form-actions"><button type="submit">Save appointment</button><button class="button secondary" type="reset" data-cancel-edit>Clear</button></div>
+  </form>
+</section>
+<section class="panel"><div class="section-heading"><h2>Appointment agenda</h2><label class="compact-label">Date<input id="appointment-filter-date" type="date"></label></div><div class="table-scroll"><table><thead><tr><th>Start</th><th>Patient</th><th>Practitioner</th><th>Service / room</th><th>Status</th><th>Visit data</th><th>Actions</th></tr></thead><tbody id="appointment-records"><tr><td colspan="7">Loading appointments…</td></tr></tbody></table></div></section>
+
+{% elif page_name == "catalog" %}
+<section class="card-grid">
+  <article class="panel form-panel"><h2>Add service</h2><form id="service-form"><label>Service name<input name="name" maxlength="120" required></label><div class="form-grid"><label>Duration in minutes<input name="duration_minutes" type="number" min="5" max="480" step="1" required></label><label>Price in cents<input name="price_cents" type="number" min="0" max="1000000000" step="1" required></label></div><button type="submit">Save service</button></form></article>
+  <article class="panel form-panel"><h2>Add room</h2><form id="room-form"><label>Room name<input name="name" maxlength="80" required></label><button type="submit">Save room</button></form></article>
+  <article class="panel form-panel"><h2>Practitioner qualifications</h2><form id="qualification-form"><label>Practitioner<select name="dentist_id" required></select></label><label>Qualified services<select name="service_ids" multiple size="5"></select></label><button type="submit">Save qualifications</button></form></article>
+</section>
+<section class="card-grid"><div class="panel"><h2>Services</h2><div id="service-records" class="record-list"></div></div><div class="panel"><h2>Rooms</h2><div id="room-records" class="record-list"></div></div></section>
+
+{% elif page_name == "schedule" %}
+<section class="card-grid">
+  <article class="panel form-panel"><h2>Publish weekly hours</h2><form id="shift-form"><label>Practitioner<select name="dentist_id" required></select></label><div class="form-grid"><label>Weekday<select name="weekday"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option></select></label><label>Starts<input name="start_time" type="time" required></label><label>Ends<input name="end_time" type="time" required></label></div><button type="submit">Add working hours</button></form></article>
+  <article class="panel form-panel"><h2>Record time off</h2><form id="time-off-form"><label>Practitioner<select name="dentist_id" required></select></label><div class="form-grid"><label>Starts<input name="start_at" type="datetime-local" required></label><label>Ends<input name="end_at" type="datetime-local" required></label></div><label>Reason<input name="reason" maxlength="240" required></label><button type="submit">Save time off</button></form></article>
+</section>
+<section class="card-grid"><div class="panel"><h2>Weekly hours</h2><div id="shift-records" class="record-list"></div></div><div class="panel"><h2>Time off</h2><div id="time-off-records" class="record-list"></div></div></section>
+
+{% elif page_name == "care" %}
+<section class="card-grid">
+  <article class="panel form-panel"><h2>Create treatment plan</h2><form id="plan-form"><label>Patient<select name="patient_id" required></select></label><label>Plan title<input name="title" maxlength="180" required></label><button type="submit">Create draft plan</button></form></article>
+  <article class="panel form-panel"><h2>Add item to draft</h2><form id="item-form"><label>Plan<select name="plan_id" required></select></label><label>Service<select name="service_id" required></select></label><div class="form-grid"><label>Order number<input name="sequence" type="number" min="1" max="999" required></label><label>Tooth reference (optional)<input name="tooth_reference" maxlength="32"></label></div><label>Clinical notes<input name="notes" maxlength="800"></label><button type="submit">Add treatment item</button></form></article>
+  <article class="panel form-panel"><h2>Link item to appointment</h2><form id="item-schedule-form"><label>Planned treatment item<select name="item_id" required></select></label><label>Appointment<select name="appointment_id" required></select></label><button type="submit">Link appointment</button></form></article>
+  <article class="panel form-panel"><h2>Add clinical note</h2><p class="muted">Notes are append-only. To correct one, create an amendment.</p><form id="note-form"><label>Patient<select name="patient_id" required></select></label><label>Appointment (optional)<select name="appointment_id"></select></label><label>Amends note (optional)<select name="amends_note_id"></select></label><label>Clinical note<textarea name="body" rows="4" maxlength="5000" required></textarea></label><button type="submit">Save note</button></form></article>
+</section>
+<section class="panel"><h2>Treatment plans</h2><div id="plan-records" class="record-list"></div></section>
+<section class="panel"><h2>Clinical notes</h2><div class="table-scroll"><table><thead><tr><th>Created</th><th>Patient ID</th><th>Appointment ID</th><th>Note</th><th>Amends</th></tr></thead><tbody id="note-records"></tbody></table></div></section>
+
+{% elif page_name == "waitlist" %}
+<section class="panel form-panel"><h2>Add a patient to the waiting list</h2><form id="waitlist-form"><div class="form-grid"><label>Patient<select name="patient_id" required></select></label><label>Service<select name="service_id" required></select></label><label>Preferred practitioner (optional)<select name="dentist_id"></select></label><label>Earliest date<input name="earliest_date" type="date" required></label><label>Latest date<input name="latest_date" type="date" required></label><label>Preferred from<input name="preferred_start" type="time" required></label><label>Preferred until<input name="preferred_end" type="time" required></label></div><button type="submit">Add to waiting list</button></form></section>
+<section class="panel"><h2>Waiting entries</h2><p class="muted">Find current available slots that match each patient's date and time preferences, then book through the normal conflict checks.</p><div class="table-scroll"><table><thead><tr><th>Patient</th><th>Service</th><th>Practitioner</th><th>Date window</th><th>Preferred time</th><th>Available slot search and booking</th><th>Actions</th></tr></thead><tbody id="waitlist-records"></tbody></table></div></section>
+
+{% elif page_name == "reminders" %}
+<section class="panel form-panel"><h2>Generate local reminder previews</h2><p>Eligible visits need patient consent and an email address. Drafts remain in this database; this tool never sends email or text messages.</p><form id="reminder-form"><label>Generate reminders due by<input name="as_of" type="datetime-local" required></label><button type="submit">Generate local drafts</button></form></section>
+<section class="panel"><h2>Local outbox</h2><div class="table-scroll"><table><thead><tr><th>Due</th><th>Type</th><th>Recipient</th><th>Preview</th><th>Status</th><th>Action</th></tr></thead><tbody id="reminder-records"></tbody></table></div></section>
+
+{% elif page_name == "reports" %}
+<section class="panel form-panel"><h2>Operations reports</h2><form id="report-form"><div class="form-grid"><label>From<input name="from" type="date" required></label><label>To<input name="to" type="date" required></label></div><button type="submit">Run reports</button></form></section>
+<section class="card-grid"><article class="panel"><h2>Daily operations</h2><div id="daily-report"></div></article><article class="panel"><h2>Utilization</h2><div id="utilization-report"></div></article><article class="panel"><h2>Completed service estimate</h2><div id="revenue-report"></div><p class="muted">Price snapshot estimate only; not accounting or payments.</p></article></section>
+
+{% elif page_name == "audit" %}
+<section class="panel"><div class="section-heading"><h2>Recent audit activity</h2><div class="filter-row"><label class="compact-label">Action<input id="audit-action" maxlength="60"></label><label class="compact-label">Entity type<input id="audit-entity" maxlength="60"></label><button id="audit-filter" type="button">Filter</button></div></div><div class="table-scroll"><table><thead><tr><th>Time (UTC)</th><th>Actor</th><th>Action</th><th>Record</th><th>Activity details</th></tr></thead><tbody id="audit-records"></tbody></table></div></section>
+
+{% elif page_name == "accounts" %}
+<section class="panel form-panel"><h2 id="account-form-title">Create local account</h2><p class="muted">Accounts have either USER or ADMIN access. Passwords are stored only as salted one-way hashes.</p><form id="account-form"><input type="hidden" name="id"><div class="form-grid"><label>Username<input name="username" minlength="3" maxlength="80" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,79}" required></label><label>Display name<input name="display_name" maxlength="120" required></label><label>Email<input name="email" type="email" maxlength="254"></label><label>Role<select name="role"><option value="USER">USER · front desk</option><option value="ADMIN">ADMIN · practice manager</option></select></label></div><label>New password<input name="password" type="password" minlength="12" maxlength="1024" autocomplete="new-password"><span class="small-note">Required when creating an account. Leave blank when updating unless you are resetting it.</span></label><label class="check-label"><input name="active" type="checkbox" checked> Account is active</label><div class="form-actions"><button type="submit">Save account</button><button class="button secondary" type="reset" id="account-clear">Clear</button></div></form></section>
+<section class="panel"><h2>Local accounts</h2><div class="table-scroll"><table><thead><tr><th>Username</th><th>Display name</th><th>Email</th><th>Role</th><th>Active</th><th>Actions</th></tr></thead><tbody id="account-records"></tbody></table></div></section>
+{% endif %}
+{% endblock %}

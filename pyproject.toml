@@ -3,9 +3,9 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "clinic-turnos"
+name = "clinic-desk"
 version = "1.0.0"
-description = "Local clinic patient, dentist, and appointment management application"
+description = "Offline dental practice operations desk using Flask and SQLite"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
