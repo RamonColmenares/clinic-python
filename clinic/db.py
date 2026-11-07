@@ -194,126 +194,46 @@ CREATE INDEX audit_events_created ON audit_events(created_at, id);
 """
 
 
-LEGACY_TABLES = {"users", "domicilios", "pacientes", "odontologos", "turnos"}
-
-
-def connect_db(database_path: str) -> sqlite3.Connection:
+def connect_db(database_path: str, *, enable_wal: bool = True) -> sqlite3.Connection:
     if database_path != ":memory:":
         Path(database_path).parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(database_path, timeout=10, isolation_level="DEFERRED")
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     connection.execute("PRAGMA busy_timeout = 10000")
-    connection.execute("PRAGMA journal_mode = WAL")
+    if enable_wal:
+        connection.execute("PRAGMA journal_mode = WAL")
     return connection
 
 
-def _tables(connection: sqlite3.Connection) -> set[str]:
-    return {
-        row[0]
-        for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        )
-    }
-
-
-def _has_legacy_schema(connection: sqlite3.Connection) -> bool:
-    return LEGACY_TABLES.issubset(_tables(connection))
-
-
-def _copy_legacy(connection: sqlite3.Connection, now: str) -> None:
-    connection.execute(
-        """INSERT INTO users (id, username, display_name, email, password_hash, role, active)
-           SELECT id, username, display_name, email, password_hash, role, 1 FROM legacy_users"""
-    )
-    connection.execute(
-        """INSERT INTO addresses (id, street, number, city, region)
-           SELECT id, calle, numero, localidad, provincia FROM legacy_domicilios"""
-    )
-    connection.execute(
-        """INSERT INTO patients
-           (id, first_name, last_name, email, patient_number, registered_on, address_id,
-            active, reminder_consent, created_at, updated_at)
-           SELECT id, nombre, apellido, email,
-                  CASE WHEN dni IS NULL THEN NULL ELSE CAST(dni AS TEXT) END,
-                  fecha_ingreso, domicilio_id, 1, 0, ?, ? FROM legacy_pacientes""",
-        (now, now),
-    )
-    connection.execute(
-        """INSERT INTO dentists (id, first_name, last_name, license_number, active, created_at, updated_at)
-           SELECT id, nombre, apellido, NULLIF(matricula, ''), 1, ?, ? FROM legacy_odontologos""",
-        (now, now),
-    )
-    connection.execute(
-        """INSERT INTO appointments
-           (id, patient_id, dentist_id, service_id, room_id, start_at, end_at, status, version,
-            reason, cancellation_reason, legacy_imported, duration_minutes, price_cents, created_at, updated_at)
-           SELECT t.id, t.paciente_id, t.odontologo_id, NULL, NULL,
-                  t.fecha || 'T09:00', t.fecha || 'T09:30', 'booked', 1,
-                  'Imported from legacy date-only appointment; reschedule before confirmation.',
-                  NULL, 1, 30, 0, ?, ? FROM legacy_turnos AS t""",
-        (now, now),
-    )
-    connection.execute(
-        """INSERT INTO appointment_events (appointment_id, from_status, to_status, actor_id, created_at, reason)
-           SELECT id, NULL, 'booked', NULL, ?, 'Imported legacy appointment. Needs explicit rescheduling.'
-           FROM appointments WHERE legacy_imported = 1""",
-        (now,),
-    )
-
-
 def init_db(app) -> None:
-    """Create the current schema or migrate the original Spanish schema atomically."""
-    connection = connect_db(app.config["DATABASE_PATH"])
+    """Initialize empty storage; preserve supported databases and reject other schemas."""
+    connection = connect_db(app.config["DATABASE_PATH"], enable_wal=False)
     try:
         version = int(connection.execute("PRAGMA user_version").fetchone()[0])
         if version == 2:
+            connection.execute("PRAGMA journal_mode = WAL")
             return
         if version != 0:
-            raise RuntimeError(f"Database version {version} is newer than this application supports.")
-        from datetime import datetime, timezone
-
-        clock = app.config.get("CLOCK")
-        moment = clock() if callable(clock) else datetime.now(timezone.utc)
-        if moment.tzinfo is None:
-            moment = moment.replace(tzinfo=timezone.utc)
-        now = moment.astimezone(timezone.utc).replace(second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
-        connection.execute("PRAGMA foreign_keys = OFF")
-        connection.executescript("BEGIN IMMEDIATE;")
+            raise RuntimeError(f"Database version {version} is unsupported; no conversion was applied.")
+        present = connection.execute(
+            "SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' LIMIT 1"
+        ).fetchone()
+        if present is not None:
+            raise RuntimeError("Unversioned database schema is unsupported; no conversion was applied.")
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("BEGIN IMMEDIATE")
         try:
-            present = _tables(connection)
-            if "patients" in present and "appointments" in present:
-                raise RuntimeError("Unversioned English database found; refusing an implicit schema conversion.")
-            had_legacy_schema = _has_legacy_schema(connection)
-            legacy_present = present & LEGACY_TABLES
-            if legacy_present and not had_legacy_schema:
-                raise RuntimeError("The legacy database is incomplete; no migration was applied.")
-            if had_legacy_schema:
-                for old, new in (
-                    ("users", "legacy_users"),
-                    ("domicilios", "legacy_domicilios"),
-                    ("pacientes", "legacy_pacientes"),
-                    ("odontologos", "legacy_odontologos"),
-                    ("turnos", "legacy_turnos"),
-                ):
-                    connection.execute(f'ALTER TABLE "{old}" RENAME TO "{new}"')
             for statement in SCHEMA.split(";"):
                 if statement.strip():
                     connection.execute(statement)
-            if had_legacy_schema:
-                _copy_legacy(connection, now)
-                for old in ("legacy_turnos", "legacy_pacientes", "legacy_odontologos", "legacy_domicilios", "legacy_users"):
-                    connection.execute(f'DROP TABLE "{old}"')
-            violations = connection.execute("PRAGMA foreign_key_check").fetchall()
-            if violations:
-                raise RuntimeError("Database migration failed its foreign-key check; the original database was preserved.")
+            if connection.execute("PRAGMA foreign_key_check").fetchall():
+                raise RuntimeError("Database initialization failed its foreign-key check.")
             connection.execute("PRAGMA user_version = 2")
             connection.commit()
         except BaseException:
             connection.rollback()
             raise
-        finally:
-            connection.execute("PRAGMA foreign_keys = ON")
     finally:
         connection.close()
 

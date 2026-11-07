@@ -106,13 +106,13 @@ Example patient and appointment requests:
 
 Appointment duration and price are copied from the selected service when booked. Visits reserve the dentist, patient, and room for half-open time intervals, so one visit can end exactly when the next begins. Booking and rescheduling checks run in an SQLite `BEGIN IMMEDIATE` transaction. Rescheduling requires the current `version`; a stale version returns `409` without changing the visit. Appointment state changes are kept as events, and appointments with history are not deleted.
 
-## Legacy SQLite migration
+## SQLite compatibility
 
-The application upgrades the previous Spanish SQLite schema on first startup and records schema version 2. It preserves account password hashes, patient and practitioner IDs, address relationships, and appointment IDs. The old national-ID field is mapped to the optional English `patient_number` field as text; new screens do not collect a national ID.
+The application initializes an empty SQLite database at schema version 2 and reopens existing version-2 databases without replacing their records. Unversioned nonempty databases and unsupported schema versions are rejected before changing their schema or records. There is no automatic importer for the original database format. Start with a fresh database or use an existing version-2 database.
 
-The original appointments stored only a calendar date. Each imported row receives placeholder database timestamps of `09:00` to `09:30` on that date, `legacy_imported: true`, no service or room, and a migration event. The placeholder is not presented as a real visit time, is omitted from utilization and revenue calculations, and cannot be confirmed or marked as care completed. Until it is explicitly rescheduled, the unresolved row conservatively reserves that patient's and practitioner's whole date. Rescheduling requires an active service, qualified practitioner, room, published working hours, and conflict-free time; after that, the appointment uses normal scheduling rules. Migration and foreign-key checks run in one transaction, so a failed migration leaves the original database intact.
+Existing version-2 rows may carry `legacy_imported: true` for date-only appointments imported by an earlier release. Their placeholder time is not presented as a real visit time, is omitted from utilization and revenue calculations, and cannot be confirmed or marked as care completed. Until explicitly rescheduled, such a row conservatively reserves that patient's and practitioner's whole date. Rescheduling requires an active service, qualified practitioner, room, published working hours, and conflict-free time; after that, the appointment uses normal scheduling rules.
 
-Back up the SQLite file before opening it with a newer application version. No migration deletes the original file separately, but the schema is upgraded in place.
+Back up existing application data before changing versions. No database, patient information, session key, or login account is bundled with the project. Examples and fixtures use reserved `example.test` email addresses, clearly synthetic identifiers, and passwords or signing keys generated only inside isolated tests.
 
 ## Local security and privacy
 
